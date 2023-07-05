@@ -1,0 +1,9 @@
+(executable
+ (name riscvdecode)
+ (modes (native plugin))
+ (libraries libsail))
+
+(install
+  (section (site (libsail plugins)))
+  (package riscvdecode)
+  (files riscvdecode.cmxs))

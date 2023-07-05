@@ -1,0 +1,9 @@
+# global things
+
+*~
+.#*
+*.bak
+
+*.install
+
+_build/
