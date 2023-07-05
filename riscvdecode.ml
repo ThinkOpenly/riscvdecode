@@ -93,43 +93,38 @@ let parse_SD_unioncl i ucl =
 let parse_DEF_type def =
   print_endline "DEF_type";
   begin match def with
-  | TD_aux (b, _) ->
-      print_endline "TD_aux";
-      begin match b with
-      | TD_abbrev (d, e, f) ->
-          print_endline ( "TD_abbrev " ^ string_of_id d ^ ":" ^ string_of_typ_arg f);
-          (* print_endline ( "TD_abbrev " ^ string_of_typquant e ); *)
-          (* print_endline ( "TD_abbrev " ^ string_of_typ_arg f ); *)
-          (*
-          begin match e with
-          | TypQ_aux ( x, _ ) ->
-              print_endline "TypQ_aux";
-              begin match x with
-              | TypQ_tq ( y ) ->
-                  print_endline "TypQ_tq";
-                  List.iter (fun y0 -> begin match y0 with
-                    | QI_aux ( z, _ ) ->
-                      print_endline "QI_aux";
-                      begin match z with
-                      | QI_id ( a ) -> print_endline "QI_id";
-                      | QI_constraint ( a ) -> print_endline "QI_constraint"
-                      | _ -> print_endline "QI_aux other";
-                      end
-                    | _ -> print_endline "TypQ_tq other"
-                    end
-                  ) y
-              | TypQ_no_forall -> print_endline "TypQ_no_forall"
-              | _ -> print_endline "TypQ_aux other";
+  | TD_aux (TD_abbrev (d, e, f), _) ->
+    print_endline ( "TD_abbrev " ^ string_of_id d ^ ":" ^ string_of_typ_arg f);
+    (* print_endline ( "TD_abbrev " ^ string_of_typquant e ); *)
+    (* print_endline ( "TD_abbrev " ^ string_of_typ_arg f ); *)
+    (*
+    begin match e with
+    | TypQ_aux ( x, _ ) ->
+        print_endline "TypQ_aux";
+        begin match x with
+        | TypQ_tq ( y ) ->
+            print_endline "TypQ_tq";
+            List.iter (fun y0 -> begin match y0 with
+              | QI_aux ( z, _ ) ->
+                print_endline "QI_aux";
+                begin match z with
+                | QI_id ( a ) -> print_endline "QI_id";
+                | QI_constraint ( a ) -> print_endline "QI_constraint"
+                | _ -> print_endline "QI_aux other";
+                end
+              | _ -> print_endline "TypQ_tq other"
               end
-          | _ -> print_endline "typquant other"
-          end
-          *)
-      | TD_record (d, e, f, g) -> print_endline ( "TD_record " ^ string_of_id d )
-      | TD_variant (d, e, f, g) -> print_endline ( "TD_variant " ^ string_of_id d )
-      | TD_enum (d, e, f) -> print_endline ( "TD_enum " ^ string_of_id d )
-      | TD_bitfield (d, e, f) -> print_endline ( "TD_bitfield " ^ string_of_id d )
-      | _ -> print_endline "TD_aux other "
-      end
+            ) y
+        | TypQ_no_forall -> print_endline "TypQ_no_forall"
+        | _ -> print_endline "TypQ_aux other";
+        end
+    | _ -> print_endline "typquant other"
+    end
+    *)
+  | TD_aux ( TD_record (d, e, f, g), _) -> print_endline ( "TD_record " ^ string_of_id d )
+  | TD_aux ( TD_variant (d, e, f, g), _) -> print_endline ( "TD_variant " ^ string_of_id d )
+  | TD_aux ( TD_enum (d, e, f), _) -> print_endline ( "TD_enum " ^ string_of_id d )
+  | TD_aux ( TD_bitfield (d, e, f), _) -> print_endline ( "TD_bitfield " ^ string_of_id d )
   | _ -> print_endline "DEF_type other"
   end
 
