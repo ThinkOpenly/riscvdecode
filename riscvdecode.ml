@@ -38,22 +38,11 @@ let parse_SD_mapcl i mc =
 let parse_SD_funcl fcl =
   print_endline "SD_funcl";
   begin match fcl with
-  | FCL_aux ( e, f ) ->
-      print_endline "FCL_aux";
-      begin match e with
-      | FCL_Funcl ( g, h ) ->
-          print_endline "FCL_Funcl";
-          begin match h with
-          | Pat_aux ( i, j ) ->
-              print_endline "Pat_aux";
-              begin match i with
-              | Pat_when ( j, k, l ) -> print_endline "Pat_when"
-              | Pat_exp ( m, n ) -> parse_Pat_exp m n
-              | _ -> print_endline "Pat_aux other"
-              end
-          | _ -> print_endline "FCL_Funcl other"
-          end
-      | _ -> print_endline "FCL_aux other"
+  | FCL_aux ( FCL_Funcl ( _, Pat_aux ( i, _ ) ), _ ) ->
+      begin match i with
+      | Pat_when ( j, k, l ) -> print_endline "Pat_when"
+      | Pat_exp ( m, n ) -> parse_Pat_exp m n
+      | _ -> print_endline "FCL_Funcl other"
       end
   | _ -> print_endline "SD_funcl other"
   end
@@ -61,33 +50,22 @@ let parse_SD_funcl fcl =
 let parse_SD_unioncl i ucl =
   print_endline ("SD_unioncl " ^ string_of_id i);
   begin match ucl with
-  | Tu_aux ( a, b ) ->
-      print_endline "Tu_aux";
-      begin match a with
-      | Tu_ty_id ( c, d ) ->
-          print_string ("Tu_ty_id " ^ string_of_id d ^ "(");
-          (* print_endline (string_of_typ c); *)
-          begin match c with
-          | Typ_aux ( i, _ ) ->
-              (* print_endline "Typ_aux "; *)
-              begin match i with
-              | Typ_id ( _ ) -> print_endline "Typ_id"
-              | Typ_var ( _ ) -> print_endline "Typ_var"
-              | Typ_fn ( _ ) -> print_endline "Typ_fn"
-              | Typ_bidir ( _ ) -> print_endline "Typ_bidir"
-              | Typ_tup ( x ) ->
-                  (* print_endline "Typ_tuple"; (* Typ_tuple in later versions of sail *) *)
-                  List.iter (fun x0 -> print_string (string_of_typ x0 ^ " ")) x;
-              | Typ_app ( _ ) -> print_endline "Typ_app"
-              | _ -> print_endline "Typ_aux other"
-              end
-          | _ -> print_endline "Tu_ty_id other"
-          end;
-          print_endline ")"
-      (* | Tu_ty_anon_rec ( c, d ) -> print_endline "Tu_ty_anon_rec"; *)
-      | _ -> print_endline "Tu_aux other"
-      end
-  | _ -> print_endline "SD_unioncl ?"
+  | Tu_aux ( Tu_ty_id ( c, d ), _ ) ->
+      print_string ("Tu_ty_id " ^ string_of_id d ^ "(");
+      (* print_endline (string_of_typ c); *)
+      begin match c with
+      | Typ_aux ( Typ_id ( _ ), _ ) -> print_endline "Typ_id"
+      | Typ_aux ( Typ_var ( _ ), _ ) -> print_endline "Typ_var"
+      | Typ_aux ( Typ_fn ( _ ), _ ) -> print_endline "Typ_fn"
+      | Typ_aux ( Typ_bidir ( _ ), _ ) -> print_endline "Typ_bidir"
+      | Typ_aux ( Typ_tup ( x ), _ ) ->
+          (* print_endline "Typ_tuple"; (* Typ_tuple in later versions of sail *) *)
+          List.iter (fun x0 -> print_string (string_of_typ x0 ^ " ")) x;
+      | Typ_aux ( Typ_app ( _ ), _ ) -> print_endline "Typ_app"
+      | _ -> print_endline "Tu_ty_id other"
+      end;
+      print_endline ")"
+  | _ -> print_endline "SD_unioncl other"
   end
 
 let parse_DEF_type def =
