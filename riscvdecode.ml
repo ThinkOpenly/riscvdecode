@@ -10,40 +10,59 @@ let string_of_arg = function
   (* | exp -> invalid_decode ("call arg " ^ string_of_exp exp) *)
   | exp -> ("exp " ^ string_of_exp exp)
 
-let rec parse_Pat_exp x exp = match exp with
-  | E_aux (E_block exps, _) ->
-      print_endline "parse_Pat_exp E_block-last";
-      parse_Pat_exp x (Util.last exps)
-  | E_aux (E_var (_, _, exp), _) ->
-      print_endline "parse_Pat_exp E_var";
-      parse_Pat_exp x exp
+let rec parse_exp e = match e with
   | E_aux (E_app (f, args), _) ->
-      print_endline ("parse_Pat_exp E_app \"" ^ string_of_id f ^ "\" [" ^ Util.string_of_list ", " string_of_arg args ^ "]")
-  | _ -> print_endline ("parse_Pat_exp invalid decode " ^ string_of_exp exp)
+      print_endline ("E_app \"" ^ string_of_id f ^ "\" [" ^ Util.string_of_list ", " string_of_arg args ^ "]")
+  | _ -> print_endline ("parse_exp other" ^ string_of_exp e)
+
+let rec parse_mpat x = match x with
+  | MP_aux (MP_lit ( l ), _) -> print_endline ("MP_lit " ^ string_of_lit l)
+  | MP_aux (MP_id ( i ), _) -> print_endline ("MP_id " ^ string_of_id i)
+  | MP_aux (MP_app ( i, pl ), _) ->
+      print_endline ("MP_app " ^ string_of_id i);
+      List.iter parse_mpat pl
+  | MP_aux (MP_vector_concat ( mpl ), _) ->
+      print_endline "MP_vector_concat";
+      List.iter parse_mpat mpl;
+  | MP_aux (MP_string_append ( pl ), _) ->
+      print_endline "MP_string_append";
+      List.iter parse_mpat pl
+  | MP_aux (MP_typ ( mp, at ), _) ->
+      print_endline "MP_typ";
+      parse_mpat mp;
+  | _ -> print_endline "mpat other"
 
 let parse_MPat_aux p = match p with
-  | MPat_aux ( MPat_pat (p), _ ) -> print_endline ("MPat_pat " ^ string_of_mpat p)
-  | MPat_aux ( MPat_when (p, e), _ ) -> print_endline ("MPat_when " ^ (string_of_mpat p) ^ " when " ^ (string_of_exp e))
+  | MPat_aux ( MPat_pat (p), _ ) ->
+      print_endline ("MPat_pat " ^ string_of_mpat p);
+      parse_mpat p;
+  | MPat_aux ( MPat_when (p, e), _ ) ->
+      print_endline ("MPat_when " ^ (string_of_mpat p) ^ " when " ^ (string_of_exp e));
+      parse_mpat p;
+      parse_exp e;
   | _ -> print_endline "MCL_bidir other"
-
-let parse_MCL_bidir pa pb =
-  parse_MPat_aux pa;
-  parse_MPat_aux pb
 
 let parse_SD_mapcl i mc =
   print_endline ("SD_mapcl " ^ string_of_id i);
   begin match mc with
-  | MCL_aux ( MCL_bidir ( a, b ), _ ) -> parse_MCL_bidir a b
+  | MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
+      parse_MPat_aux pa;
+      parse_MPat_aux pb
   | _ -> print_endline "mapcl other"
   end
 
 let parse_SD_funcl fcl =
   print_endline "SD_funcl";
   begin match fcl with
-  | FCL_aux ( FCL_Funcl ( _, Pat_aux ( i, _ ) ), _ ) ->
-      begin match i with
-      | Pat_when ( j, k, l ) -> print_endline "Pat_when"
-      | Pat_exp ( m, n ) -> parse_Pat_exp m n
+  | FCL_aux ( FCL_Funcl ( i, Pat_aux ( j, _ ) ), _ ) ->
+      print_endline ("FD_Funcl " ^ string_of_id i);
+      begin match j with
+      | Pat_exp ( m, e ) -> (* parse_exp e *)
+          print_endline (string_of_exp e)
+      | Pat_when ( k, l, m ) ->
+          print_endline "Pat_when";
+          parse_exp l;
+          parse_exp m
       | _ -> print_endline "FCL_Funcl other"
       end
   | _ -> print_endline "SD_funcl other"
