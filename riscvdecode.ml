@@ -3,6 +3,8 @@ open Ast
 open Ast_defs
 open Ast_util
 
+let types = Hashtbl.create 997
+
 let string_of_arg = function
   | E_aux (E_id id, _) -> "\"" ^ string_of_id id ^ "\""
   (* | exp -> invalid_decode ("call arg " ^ string_of_exp exp) *)
@@ -60,7 +62,13 @@ let parse_SD_unioncl i ucl =
       | Typ_aux ( Typ_bidir ( _ ), _ ) -> print_endline "Typ_bidir"
       | Typ_aux ( Typ_tup ( x ), _ ) ->
           (* print_endline "Typ_tuple"; (* Typ_tuple in later versions of sail *) *)
-          List.iter (fun x0 -> print_string (string_of_typ x0 ^ " ")) x;
+          List.iter (fun x0 ->
+              let type_name = string_of_typ x0 in
+                let type_type = try Hashtbl.find types (string_of_typ x0)
+                  with Not_found -> "None"
+                in print_string (type_name ^ ":" ^ type_type ^ " ")
+            )
+            x;
       | Typ_aux ( Typ_app ( _ ), _ ) -> print_endline "Typ_app"
       | _ -> print_endline "Tu_ty_id other"
       end;
@@ -73,6 +81,7 @@ let parse_DEF_type def =
   begin match def with
   | TD_aux (TD_abbrev (d, e, f), _) ->
     print_endline ( "TD_abbrev " ^ string_of_id d ^ ":" ^ string_of_typ_arg f);
+    Hashtbl.add types (string_of_id d) (string_of_typ_arg f);
     (* print_endline ( "TD_abbrev " ^ string_of_typquant e ); *)
     (* print_endline ( "TD_abbrev " ^ string_of_typ_arg f ); *)
     (*
@@ -122,6 +131,7 @@ let riscv_decode_info ast env =
     | DEF_type ( def ) -> parse_DEF_type def
     | _ -> print_string ""
   ) ast.defs;
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) types;
   exit 0
   
 let _ =
