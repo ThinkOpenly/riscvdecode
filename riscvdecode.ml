@@ -4,6 +4,7 @@ open Ast_defs
 open Ast_util
 
 let types = Hashtbl.create 997
+let sigs = Hashtbl.create 997
 
 let string_of_arg = function
   | E_aux (E_id id, _) -> "\"" ^ string_of_id id ^ "\""
@@ -75,12 +76,8 @@ let parse_SD_unioncl i ucl =
       print_string ("Tu_ty_id " ^ string_of_id d ^ "(");
       (* print_endline (string_of_typ c); *)
       begin match c with
-      | Typ_aux ( Typ_id ( _ ), _ ) -> print_endline "Typ_id"
-      | Typ_aux ( Typ_var ( _ ), _ ) -> print_endline "Typ_var"
-      | Typ_aux ( Typ_fn ( _ ), _ ) -> print_endline "Typ_fn"
-      | Typ_aux ( Typ_bidir ( _ ), _ ) -> print_endline "Typ_bidir"
       | Typ_aux ( Typ_tup ( x ), _ ) ->
-          (* print_endline "Typ_tuple"; (* Typ_tuple in later versions of sail *) *)
+          (* Typ_tuple in later versions of sail *)
           List.iter (fun x0 ->
               let type_name = string_of_typ x0 in
                 let type_type = try Hashtbl.find types (string_of_typ x0)
@@ -88,7 +85,8 @@ let parse_SD_unioncl i ucl =
                 in print_string (type_name ^ ":" ^ type_type ^ " ")
             )
             x;
-      | Typ_aux ( Typ_app ( _ ), _ ) -> print_endline "Typ_app"
+          let l = List.map string_of_typ x in
+            Hashtbl.add sigs (string_of_id d) l;
       | _ -> print_endline "Tu_ty_id other"
       end;
       print_endline ")"
@@ -151,8 +149,9 @@ let riscv_decode_info ast env =
     | _ -> print_string ""
   ) ast.defs;
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) types;
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) sigs;
   exit 0
-  
+
 let _ =
   Target.register
     ~name:"riscv_decode"
