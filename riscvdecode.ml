@@ -5,6 +5,8 @@ open Ast_util
 
 let types = Hashtbl.create 997
 let sigs = Hashtbl.create 997
+let operands = Hashtbl.create 997
+let encodings = Hashtbl.create 997
 
 let string_of_arg = function
   | E_aux (E_id id, _) -> "\"" ^ string_of_id id ^ "\""
@@ -33,6 +35,27 @@ let rec parse_mpat x = match x with
       parse_mpat mp;
   | _ -> print_endline "mpat other"
 
+let rec string_list_of_mpat x = match x with
+  | MP_aux (MP_lit ( l ), _) ->
+      print_endline ("MP_lit " ^ string_of_lit l);
+      [ string_of_lit l ]
+  | MP_aux (MP_id ( i ), _) ->
+      print_endline ("MP_id " ^ string_of_id i);
+      [ string_of_id i ]
+  | MP_aux (MP_app ( i, pl ), _) ->
+      print_endline ("MP_app " ^ string_of_id i);
+      List.concat (List.map string_list_of_mpat pl)
+  | MP_aux (MP_vector_concat ( mpl ), _) ->
+      print_endline "MP_vector_concat";
+      List.concat (List.map string_list_of_mpat mpl);
+  | MP_aux (MP_string_append ( pl ), _) ->
+      print_endline "MP_string_append";
+      List.concat (List.map string_list_of_mpat pl)
+  | MP_aux (MP_typ ( mp, at ), _) ->
+      print_endline "MP_typ";
+      string_list_of_mpat mp;
+  | _ -> assert false
+
 let parse_MPat_aux p = match p with
   | MPat_aux ( MPat_pat (p), _ ) ->
       print_endline ("MPat_pat " ^ string_of_mpat p);
@@ -43,8 +66,97 @@ let parse_MPat_aux p = match p with
       parse_exp e;
   | _ -> print_endline "MCL_bidir other"
 
+let string_of_exp e = ""
+
+let string_lists_of_MPat_aux p = match p with
+  | MPat_aux ( MPat_pat (p), _ ) ->
+      (* print_endline ("MPat_pat " ^ string_of_mpat p); *)
+      (* (string_list_of_mpat p, None) *)
+      (string_list_of_mpat p, None)
+  | MPat_aux ( MPat_when (p, e), _ ) ->
+      (* print_endline ("MPat_when " ^ (string_of_mpat p) ^ " when " ^ (string_of_exp e)); *)
+      (string_list_of_mpat p, Some (string_of_exp e))
+  | _ -> assert false
+
+let parse_operands mp = match mp with
+  | MP_aux (MP_app ( app_id, mpl ), _) ->
+      print_endline ("MP_app " ^ string_of_id app_id);
+      let operandl = List.concat (List.map string_list_of_mpat mpl) in
+      begin
+        List.iter print_endline operandl;
+        Hashtbl.add operands (string_of_id app_id) operandl;
+      end
+  | _ -> assert false
+
+let parse_opcode mp = string_list_of_mpat mp
+
+let parse_encdec i mc = match mc with
+  | MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
+      print_endline "MCL_bidir (left part)";
+      begin match pa with
+      | MPat_aux ( MPat_pat (p), _ ) ->
+          print_endline ("MPat_pat ");
+          parse_operands p
+      | MPat_aux ( MPat_when (p, e), _ ) ->
+          print_endline ("MPat_when ");
+          begin match p with
+          | MP_aux (MP_app ( app_id, mpl ), _) ->
+              print_endline ("MP_app " ^ string_of_id app_id);
+              let operandl = List.concat (List.map string_list_of_mpat mpl) in
+              begin
+                List.iter print_endline operandl;
+                Hashtbl.add operands (string_of_id app_id) operandl;
+                print_endline "MCL_bidir (right part)";
+                begin match pb with
+                | MPat_aux ( MPat_pat (p), _ ) ->
+                    print_endline ("MPat_pat ");
+                    List.iter print_endline (parse_opcode p);
+                    Hashtbl.add encodings (string_of_id app_id) (string_list_of_mpat p);
+                | MPat_aux ( MPat_when (p, e), _ ) ->
+                    print_endline ("MPat_when ");
+                    List.iter print_endline (parse_opcode p);
+                    Hashtbl.add encodings (string_of_id app_id) (string_list_of_mpat p);
+                | _ ->
+                    print_endline ("assert ");
+                    assert false
+                end
+              end
+          | _ -> assert false
+          end
+      | _ ->
+          print_endline ("assert ");
+          assert false
+      end;
+  | _ -> assert false
+
+let parse_assembly i mc = match mc with
+  | MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
+      print_endline "MCL_bidir";
+      begin match pa with
+      | MPat_aux ( MPat_pat (p), _ ) ->
+          print_endline ("MPat_pat ");
+          parse_operands p
+      | MPat_aux ( MPat_when (p, e), _ ) ->
+          print_endline ("MPat_when ");
+          parse_operands p
+      | _ ->
+          print_endline ("assert ");
+          assert false
+      end
+  | _ -> assert false
+
 let parse_SD_mapcl i mc =
   print_endline ("SD_mapcl " ^ string_of_id i);
+  if string_of_id i = "encdec" then
+  begin
+    print_endline "ENCDEC!";
+    ignore (parse_encdec i mc);
+  end
+  else if string_of_id i = "assembly" then
+  begin
+    print_endline "ASSEMBLY!";
+    parse_assembly i mc;
+  end;
   begin match mc with
   | MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
       parse_MPat_aux pa;
@@ -150,6 +262,8 @@ let riscv_decode_info ast env =
   ) ast.defs;
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) types;
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) sigs;
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) operands;
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) encodings;
   exit 0
 
 let _ =
