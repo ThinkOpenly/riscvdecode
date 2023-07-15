@@ -90,39 +90,40 @@ let parse_operands mp = match mp with
 
 let parse_opcode mp = string_list_of_mpat mp
 
+let parse_encdec_mpat mp pb = match mp with
+  | MP_aux (MP_app ( app_id, mpl ), _) ->
+      print_endline ("MP_app " ^ string_of_id app_id);
+      let operandl = List.concat (List.map string_list_of_mpat mpl) in
+      begin
+        List.iter print_endline operandl;
+        Hashtbl.add operands (string_of_id app_id) operandl;
+        print_endline "MCL_bidir (right part)";
+        begin match pb with
+        | MPat_aux ( MPat_pat (p), _ ) ->
+            print_endline ("MPat_pat ");
+            List.iter print_endline (parse_opcode p);
+            Hashtbl.add encodings (string_of_id app_id) (string_list_of_mpat p);
+        | MPat_aux ( MPat_when (p, e), _ ) ->
+            print_endline ("MPat_when ");
+            List.iter print_endline (parse_opcode p);
+            Hashtbl.add encodings (string_of_id app_id) (string_list_of_mpat p);
+        | _ ->
+            print_endline ("assert ");
+            assert false
+        end
+      end
+  | _ -> assert false
+
 let parse_encdec i mc = match mc with
   | MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
       print_endline "MCL_bidir (left part)";
       begin match pa with
       | MPat_aux ( MPat_pat (p), _ ) ->
           print_endline ("MPat_pat ");
-          parse_operands p
+          parse_encdec_mpat p pb;
       | MPat_aux ( MPat_when (p, e), _ ) ->
           print_endline ("MPat_when ");
-          begin match p with
-          | MP_aux (MP_app ( app_id, mpl ), _) ->
-              print_endline ("MP_app " ^ string_of_id app_id);
-              let operandl = List.concat (List.map string_list_of_mpat mpl) in
-              begin
-                List.iter print_endline operandl;
-                Hashtbl.add operands (string_of_id app_id) operandl;
-                print_endline "MCL_bidir (right part)";
-                begin match pb with
-                | MPat_aux ( MPat_pat (p), _ ) ->
-                    print_endline ("MPat_pat ");
-                    List.iter print_endline (parse_opcode p);
-                    Hashtbl.add encodings (string_of_id app_id) (string_list_of_mpat p);
-                | MPat_aux ( MPat_when (p, e), _ ) ->
-                    print_endline ("MPat_when ");
-                    List.iter print_endline (parse_opcode p);
-                    Hashtbl.add encodings (string_of_id app_id) (string_list_of_mpat p);
-                | _ ->
-                    print_endline ("assert ");
-                    assert false
-                end
-              end
-          | _ -> assert false
-          end
+          parse_encdec_mpat p pb;
       | _ ->
           print_endline ("assert ");
           assert false
