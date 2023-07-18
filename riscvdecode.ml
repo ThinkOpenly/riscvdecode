@@ -8,6 +8,7 @@ let sigs = Hashtbl.create 997
 let operands = Hashtbl.create 997
 let encodings = Hashtbl.create 997
 let assembly = Hashtbl.create 997
+let functions = Hashtbl.create 997
 
 let string_of_arg = function
   | E_aux (E_id id, _) -> "\"" ^ string_of_id id ^ "\""
@@ -193,21 +194,50 @@ let parse_SD_mapcl i mc =
   | _ -> print_endline "mapcl other"
   end
 
+let parse_execute p e =
+  let x = match p with
+        P_aux ( P_app (i, pl), _ ) ->
+          print_endline ("P_app " ^ string_of_id i);
+          string_of_id i
+      | _ -> raise (Failure "pat other")
+    in begin
+      print_endline "<- pat";
+      print_endline "exp -> ";
+      print_endline (string_of_exp e);
+      print_endline "<- exp";
+      Hashtbl.add functions x (string_of_exp e)
+    end
+
 let parse_SD_funcl fcl =
   print_endline "SD_funcl";
   begin match fcl with
   | FCL_aux ( FCL_Funcl ( i, Pat_aux ( j, _ ) ), _ ) ->
-      print_endline ("FD_Funcl " ^ string_of_id i);
-      begin match j with
-      | Pat_exp ( m, e ) -> (* parse_exp e *)
-          print_endline (string_of_exp e)
-      | Pat_when ( k, l, m ) ->
-          print_endline "Pat_when";
-          parse_exp l;
-          parse_exp m
-      | _ -> print_endline "FCL_Funcl other"
+      print_endline ("FCL_Funcl " ^ string_of_id i);
+      if (string_of_id i) = "execute" then begin
+        match j with
+        | Pat_exp ( p, e ) -> (* parse_exp e *)
+            print_endline "Pat_exp";
+            print_endline (string_of_pat p);
+            print_endline "pat -> ";
+            let x = match p with
+                  P_aux ( P_app (x, pl), _ ) ->
+                    print_endline ("P_app " ^ string_of_id x);
+                | _ -> print_endline "pat other"
+              in ();
+            print_endline "<- pat";
+            print_endline "exp -> ";
+            print_endline (string_of_exp e);
+            print_endline "<- exp";
+            parse_execute p e
+        | Pat_when ( p, e, w ) ->
+            print_endline "Pat_when";
+            print_endline (string_of_pat p);
+            print_endline (string_of_exp e);
+            print_endline (string_of_exp w);
+            parse_execute p e;
+        | _ -> raise (Failure "FCL_Funcl other")
       end
-  | _ -> print_endline "SD_funcl other"
+  | _ -> raise (Failure "SD_funcl other")
   end
 
 let parse_SD_unioncl i ucl =
@@ -294,6 +324,7 @@ let riscv_decode_info ast env =
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) operands;
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) encodings;
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) assembly;
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) functions;
   exit 0
 
 let _ =
