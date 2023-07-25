@@ -304,8 +304,7 @@ let json_of_operand op = "\"" ^ op ^ "\""
 
 let json_of_key_operand key op t =
   "\n{\n" ^
-  "  \"name\": \"" ^ op ^ "\"," ^
-  "  \"type\": \"" ^ t ^ "\"\n" ^
+  "  \"name\": \"" ^ op ^ "\", \"type\": \"" ^ t ^ "\"\n" ^
   "}"
 
 let json_of_operands k =
@@ -327,6 +326,12 @@ let json_of_instruction k =
 let riscv_decode_info ast env =
   List.iter (fun def ->
     match def with
+      DEF_type ( def ) -> parse_DEF_type def
+    | DEF_spec ( vs ) ->
+        print_endline "DEF_spec";
+        begin match vs with
+          VS_aux ( VS_val_spec (ts, i, eo, b), _) -> print_endline ((string_of_typschm ts) ^ ":" ^ (string_of_id i))
+        end
     | DEF_scattered ( def ) ->
         begin match def with
         | SD_aux ( SD_funcl ( fcl ), _ ) -> parse_SD_funcl fcl
@@ -337,7 +342,6 @@ let riscv_decode_info ast env =
         | SD_aux ( SD_mapcl ( i, mc ), _ ) -> parse_SD_mapcl i mc
         | _ -> print_endline "b"
         end
-    | DEF_type ( def ) -> parse_DEF_type def
     | _ -> print_string ""
   ) ast.defs;
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) types;
