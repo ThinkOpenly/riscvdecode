@@ -316,11 +316,24 @@ let json_of_operands k =
           String.concat ", " (List.map2 fk opslist typeslist)
     | (_, _) -> ""
 
+let string_of_sizeof_field f =
+  if String.starts_with ~prefix:"0b" f then string_of_int (String.length f - 2)
+  else "0" (* This is a lie. Things like "reg_name" need to be parsed. *)
+
+let json_of_field f =
+  "{ \"field\": \"" ^ f ^ "\", \"size\": " ^ string_of_sizeof_field f ^ " }"
+
+let json_of_fields k =
+  match Hashtbl.find_opt encodings k with
+    None -> ""
+  | Some (fields) -> String.concat ", " (List.map json_of_field fields)
+
 let json_of_instruction k =
   let m = Hashtbl.find assembly k in
     "{\n" ^
     "  \"mnemonic\": " ^ List.hd m ^ ",\n" ^
-    "  \"operands\": [ " ^ (json_of_operands k) ^ " ]\n" ^
+    "  \"operands\": [ " ^ (json_of_operands k) ^ " ],\n" ^
+    "  \"fields\": [ " ^ (json_of_fields k) ^ " ]\n" ^
     "}"
 
 let riscv_decode_info ast env =
