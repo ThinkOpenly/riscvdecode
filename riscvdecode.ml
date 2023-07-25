@@ -328,12 +328,20 @@ let json_of_fields k =
     None -> ""
   | Some (fields) -> String.concat ", " (List.map json_of_field fields)
 
+let json_of_function k =
+  match Hashtbl.find_opt functions k with
+    None -> ""
+  | Some (f) -> String.escaped f
+
 let json_of_instruction k =
   let m = Hashtbl.find assembly k in
     "{\n" ^
     "  \"mnemonic\": " ^ List.hd m ^ ",\n" ^
+    "  \"name\": " ^ "\"TBD\"" ^ ",\n" ^
     "  \"operands\": [ " ^ (json_of_operands k) ^ " ],\n" ^
-    "  \"fields\": [ " ^ (json_of_fields k) ^ " ]\n" ^
+    "  \"fields\": [ " ^ (json_of_fields k) ^ " ],\n" ^
+    "  \"function\": \"" ^ (json_of_function k) ^ "\",\n" ^
+    "  \"description\": " ^ "\"TBD\"" ^ "\n" ^
     "}"
 
 let riscv_decode_info ast env =
