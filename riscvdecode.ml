@@ -12,7 +12,6 @@ let functions = Hashtbl.create 997
 
 let string_of_arg = function
   | E_aux (E_id id, _) -> "\"" ^ string_of_id id ^ "\""
-  (* | exp -> invalid_decode ("call arg " ^ string_of_exp exp) *)
   | exp -> ("exp " ^ string_of_exp exp)
 
 let rec parse_exp e = match e with
@@ -51,7 +50,7 @@ let rec string_list_of_mpat x = match x with
       | "spc" | "sep" -> []
       | _ -> let b = List.concat (List.map string_list_of_mpat pl) in begin
            print_endline ("<-- MP_app" ^ string_of_id i);
-           b
+           List.concat [ [ (string_of_id i); "(" ]; b; [ ")" ] ]
         end
       end
   | MP_aux (MP_vector_concat ( mpl ), _) ->
@@ -78,7 +77,6 @@ let parse_MPat_aux p = match p with
 let string_lists_of_MPat_aux p = match p with
   | MPat_aux ( MPat_pat (p), _ ) ->
       (* print_endline ("MPat_pat " ^ string_of_mpat p); *)
-      (* (string_list_of_mpat p, None) *)
       (string_list_of_mpat p, None)
   | MPat_aux ( MPat_when (p, e), _ ) ->
       (* print_endline ("MPat_when " ^ (string_of_mpat p) ^ " when " ^ (string_of_exp e)); *)
@@ -125,6 +123,17 @@ let parse_encdec i mc = match mc with
       end;
   | _ -> assert false
 
+let add_assembly app_id p = 
+  let x = string_list_of_mpat p in
+    begin
+      (* We only support "simple" assembly at the moment,
+         where the quoted literal mnemonic is in the statement. *)
+      if String.get (List.hd x) 0 = '"' then begin
+        print_endline ("assembly.add " ^ string_of_id app_id ^ " : " ^ List.hd x);
+        Hashtbl.add assembly (string_of_id app_id) x;
+      end
+    end
+
 let parse_assembly_mpat mp pb = match mp with
   | MP_aux (MP_app ( app_id, mpl ), _) ->
       print_endline ("MP_app " ^ string_of_id app_id);
@@ -135,13 +144,11 @@ let parse_assembly_mpat mp pb = match mp with
         print_endline "MCL_bidir (right part)";
         begin match pb with
         | MPat_aux ( MPat_pat (p), _ ) ->
-            print_endline ("MPat_pat ");
-            List.iter print_endline (string_list_of_mpat p);
-            Hashtbl.add assembly (string_of_id app_id) (string_list_of_mpat p);
+            print_endline ("MPat_pat assembly");
+            add_assembly app_id p
         | MPat_aux ( MPat_when (p, e), _ ) ->
-            print_endline ("MPat_when ");
-            List.iter print_endline (string_list_of_mpat p);
-            Hashtbl.add assembly (string_of_id app_id) (string_list_of_mpat p);
+            print_endline ("MPat_when assembly");
+            add_assembly app_id p
         | _ ->
             print_endline ("assert ");
             assert false
@@ -293,6 +300,10 @@ let parse_DEF_type def =
   | _ -> print_endline "DEF_type other"
   end
 
+let json_of_instruction k =
+  let m = Hashtbl.find assembly k in
+    "{ \"mnemonic\": " ^ List.hd m ^ "}"
+
 let riscv_decode_info ast env =
   List.iter (fun def ->
     match def with
@@ -310,11 +321,23 @@ let riscv_decode_info ast env =
     | _ -> print_string ""
   ) ast.defs;
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) types;
+  print_endline "sigs";
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) sigs;
+  print_endline "operands";
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) operands;
+  print_endline "encodings";
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) encodings;
+  print_endline "assembly";
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) assembly;
+  print_endline "functions";
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) functions;
+  print_endline "{";
+  print_endline "  \"instructions\": [";
+  (* Filter out keys which have no match in 'assembly'. *)
+  Hashtbl.iter (fun k v -> if Hashtbl.find_opt assembly k == None then Hashtbl.remove sigs k) sigs;
+  print_endline (String.concat ",\n" (List.map json_of_instruction (Hashtbl.fold (fun k v init -> k :: init) sigs [])));
+  print_endline "  ]";
+  print_endline "}";
   exit 0
 
 let _ =
