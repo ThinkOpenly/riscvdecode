@@ -300,9 +300,29 @@ let parse_DEF_type def =
   | _ -> print_endline "DEF_type other"
   end
 
+let json_of_operand op = "\"" ^ op ^ "\""
+
+let json_of_key_operand key op t =
+  "\n{\n" ^
+  "  \"name\": \"" ^ op ^ "\"," ^
+  "  \"type\": \"" ^ t ^ "\"\n" ^
+  "}"
+
+let json_of_operands k =
+  let ops = Hashtbl.find_opt operands k
+  and types = Hashtbl.find_opt sigs k in
+    match (ops, types) with
+      (Some opslist, Some typeslist) ->
+        let fk = json_of_key_operand k in
+          String.concat ", " (List.map2 fk opslist typeslist)
+    | (_, _) -> ""
+
 let json_of_instruction k =
   let m = Hashtbl.find assembly k in
-    "{ \"mnemonic\": " ^ List.hd m ^ "}"
+    "{\n" ^
+    "  \"mnemonic\": " ^ List.hd m ^ ",\n" ^
+    "  \"operands\": [ " ^ (json_of_operands k) ^ " ]\n" ^
+    "}"
 
 let riscv_decode_info ast env =
   List.iter (fun def ->
