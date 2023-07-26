@@ -85,16 +85,6 @@ let string_lists_of_MPat_aux p = match p with
       (string_list_of_mpat p, Some (string_of_exp e))
   | _ -> assert false
 
-let parse_operands mp = match mp with
-  | MP_aux (MP_app ( app_id, mpl ), _) ->
-      print_endline ("MP_app " ^ string_of_id app_id);
-      let operandl = List.concat (List.map string_list_of_mpat mpl) in
-      begin
-        List.iter print_endline operandl;
-        Hashtbl.add operands (string_of_id app_id) operandl;
-      end
-  | _ -> assert false
-
 let parse_encdec_mpat mp pb = match mp with
   | MP_aux (MP_app ( app_id, mpl ), _) ->
       print_endline ("MP_app " ^ string_of_id app_id);
@@ -168,7 +158,7 @@ let parse_assembly i mc = match mc with
           parse_assembly_mpat p pb
       | MPat_aux ( MPat_when (p, e), _ ) ->
           print_endline ("MPat_when ");
-          parse_operands p
+          parse_assembly_mpat p pb
       | _ ->
           print_endline ("assert ");
           assert false
