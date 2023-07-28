@@ -308,17 +308,40 @@ let json_of_operands k =
           String.concat ", " (List.map2 fk opslist typeslist)
     | (_, _) -> ""
 
-let string_of_sizeof_field f =
-  if String.starts_with ~prefix:"0b" f then string_of_int (String.length f - 2)
-  else "0" (* This is a lie. Things like "reg_name" need to be parsed. *)
+let rec basetype t =
+  match Hashtbl.find_opt types t with
+    None -> t
+  | Some bt -> basetype bt
 
-let json_of_field f =
-  "{ \"field\": \"" ^ f ^ "\", \"size\": " ^ string_of_sizeof_field f ^ " }"
+let string_of_sizeof_field k f =
+  if String.starts_with ~prefix:"0b" f then string_of_int (String.length f - 2)
+  else begin
+    print_endline ("sizeof " ^ k ^ " " ^ f);
+    let opmap = List.combine (Hashtbl.find operands k) (Hashtbl.find sigs k) in
+      begin match List.assoc_opt f opmap with
+        Some t ->
+          let bt = basetype t in
+            if bt = "bool" then
+              "1"
+            else if String.starts_with ~prefix:"bits(" bt then
+              List.hd (String.split_on_char ')' (List.hd (List.tl ((String.split_on_char '(' bt)))))
+            else begin
+              print_endline ("unfamiliar base type " ^ bt);
+              "72"
+            end
+      | None ->
+          print_endline ("not found " ^ f);
+          "0"
+      end
+  end
+
+let json_of_field k f =
+  "{ \"field\": \"" ^ f ^ "\", \"size\": " ^ string_of_sizeof_field k f ^ " }"
 
 let json_of_fields k =
   match Hashtbl.find_opt encodings k with
     None -> ""
-  | Some (fields) -> String.concat ", " (List.map json_of_field fields)
+  | Some (fields) -> String.concat ", " (List.map (fun f -> json_of_field k f) fields)
 
 let json_of_function k =
   match Hashtbl.find_opt functions k with
