@@ -9,6 +9,7 @@ let operands = Hashtbl.create 997
 let encodings = Hashtbl.create 997
 let assembly = Hashtbl.create 997
 let functions = Hashtbl.create 997
+let op_functions = Hashtbl.create 997
 
 let string_of_arg = function
   | E_aux (E_id id, _) -> "\"" ^ string_of_id id ^ "\""
@@ -51,7 +52,7 @@ let rec string_list_of_mpat x = match x with
       | _ -> let b = List.concat (List.map string_list_of_mpat pl) in
           begin
             print_endline ("<-- MP_app" ^ string_of_id i);
-            List.concat [ [ (string_of_id i); "(" ]; b; [ ")" ] ]
+            [ (string_of_id i) ^ "(" ^ (String.concat "," b) ^ ")" ]
           end
       end
   | MP_aux (MP_vector_concat ( mpl ), _) ->
@@ -315,6 +316,9 @@ let rec basetype t =
 
 let string_of_sizeof_field k f =
   if String.starts_with ~prefix:"0b" f then string_of_int (String.length f - 2)
+  else if String.contains f '(' then
+    let op_func = List.hd (String.split_on_char '(' f) in
+      Hashtbl.find op_functions op_func
   else begin
     print_endline ("sizeof " ^ k ^ " " ^ f);
     let opmap = List.combine (Hashtbl.find operands k) (Hashtbl.find sigs k) in
@@ -359,6 +363,25 @@ let json_of_instruction k =
     "  \"description\": " ^ "\"TBD\"" ^ "\n" ^
     "}"
 
+let rec parse_typ name t = match t with
+    Typ_aux (Typ_bidir (tl, tr), _) ->
+      print_endline "Typ_bidir";
+      parse_typ name tl; parse_typ name tr
+  | Typ_aux (Typ_app (id, args), _) -> print_endline (string_of_id id);
+      print_endline (string_of_id id ^ "(" ^ (String.concat ", " (List.map string_of_typ_arg args)) ^ ")");
+      begin match string_of_id id with
+          "bitvector" ->
+            print_endline (string_of_typ_arg (List.hd args));
+            Hashtbl.add op_functions name (string_of_typ_arg (List.hd args))
+        | _ -> print_endline "Typ_app other"
+      end
+  | _ -> print_endline "typ other"
+
+let parse_typschm name ts = match ts with
+    TypSchm_aux ( TypSchm_ts ( _, x ), _ ) ->
+      parse_typ name x (* This compiles as if x is a 'typ' instead of 'atyp' (?) *)
+  | _ -> assert false
+
 let riscv_decode_info ast env =
   List.iter (fun def ->
     match def with
@@ -366,7 +389,8 @@ let riscv_decode_info ast env =
     | DEF_spec ( vs ) ->
         print_endline "DEF_spec";
         begin match vs with
-          VS_aux ( VS_val_spec (ts, i, eo, b), _) -> print_endline ((string_of_typschm ts) ^ ":" ^ (string_of_id i))
+          VS_aux ( VS_val_spec (ts, i, _, _), _) ->
+            parse_typschm (string_of_id i) ts
         end
     | DEF_scattered ( def ) ->
         begin match def with
@@ -391,6 +415,8 @@ let riscv_decode_info ast env =
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ Util.string_of_list ", " (fun x -> x) v)) assembly;
   print_endline "functions";
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) functions;
+  print_endline "op_functions";
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) op_functions;
   print_endline "{";
   print_endline "  \"instructions\": [";
   (* Filter out keys which have no match in 'assembly'. *)
