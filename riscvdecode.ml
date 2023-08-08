@@ -10,6 +10,9 @@ let encodings = Hashtbl.create 997
 let assembly = Hashtbl.create 997
 let functions = Hashtbl.create 997
 let op_functions = Hashtbl.create 997
+let inames = Hashtbl.create 997
+let idescriptions = Hashtbl.create 997
+let iformats = Hashtbl.create 997
 
 let string_of_arg = function
   | E_aux (E_id id, _) -> "\"" ^ string_of_id id ^ "\""
@@ -172,6 +175,106 @@ let parse_assembly i mc = match mc with
       end
   | _ -> assert false
 
+let add_iname app_id p =
+  let x = string_list_of_mpat p in begin
+    print_endline ("add_iname " ^ (string_of_id app_id) ^ ":" ^ (String.concat "; " x));
+    Hashtbl.add inames (string_of_id app_id) (String.concat "; " x)
+  end
+
+let parse_iname_mpat mp pb = match mp with
+  | MP_aux (MP_app ( app_id, mpl ), _) ->
+      print_endline ("MP_app " ^ string_of_id app_id);
+      print_endline "MCL_bidir (right part)";
+      begin match pb with
+        MPat_aux ( MPat_pat (p), _ ) ->
+          print_endline ("MPat_pat iname");
+          add_iname app_id p
+      | _ ->
+          print_endline ("assert ");
+          assert false
+      end
+  | _ -> assert false
+
+let parse_iname i mc = match mc with
+    MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
+      print_endline ("MCL_bidir " ^ string_of_id i);
+      begin match pa with
+        MPat_aux ( MPat_pat (p), _ ) ->
+          print_endline ("MPat_pat TBD");
+          parse_iname_mpat p pb
+      | _ -> assert false
+      end
+  | _ -> assert false
+
+let add_idescription app_id p =
+  let x = string_list_of_mpat p in begin
+    print_endline ("add_idescription " ^ (string_of_id app_id) ^ ":" ^ (String.concat " " x));
+    List.iter (fun s -> print_endline (String.sub s 1 (String.length s - 2))) x;
+    (* Convert a list of quoted strings into a single string. *)
+    let description = String.concat " " (List.map (fun s -> (String.sub s 1 (String.length s - 2))) x) in
+      Hashtbl.add idescriptions (string_of_id app_id) description
+  end
+
+let parse_idescription_mpat mp pb = match mp with
+  | MP_aux (MP_app ( app_id, mpl ), _) ->
+      print_endline ("MP_app " ^ string_of_id app_id);
+      print_endline "MCL_bidir (right part)";
+      begin match pb with
+        MPat_aux ( MPat_pat (p), _ ) ->
+          print_endline ("MPat_pat idescription");
+          add_idescription app_id p
+      | _ ->
+          print_endline ("assert ");
+          assert false
+      end
+  | _ -> assert false
+
+let parse_idescription i mc = match mc with
+    MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
+      print_endline ("MCL_bidir " ^ string_of_id i);
+      begin match pa with
+        MPat_aux ( MPat_pat (p), _ ) ->
+          print_endline ("MPat_pat TBD");
+          parse_idescription_mpat p pb
+      | _ -> assert false
+      end
+  | _ -> assert false
+
+let add_iformat app_id p = 
+  let x = string_list_of_mpat p in begin
+    print_endline ("add_iformat " ^ (string_of_id app_id) ^ ":" ^ (String.concat " " x));
+    List.iter (fun s -> print_endline (String.sub s 1 (String.length s - 2))) x;
+    Hashtbl.add iformats (string_of_id app_id) (String.concat " " (List.map (fun s -> (String.sub s 1 (String.length s - 2))) x));
+    (* Convert a list of quoted strings into a single string. *)
+    let format = String.concat " " (List.map (fun s -> (String.sub s 1 (String.length s - 2))) x) in
+      Hashtbl.add iformats (string_of_id app_id) format;
+  end
+
+let parse_iformat_mpat mp pb = match mp with
+  | MP_aux (MP_app ( app_id, mpl ), _) ->
+      print_endline ("MP_app " ^ string_of_id app_id);
+      print_endline "MCL_bidir (right part)";
+      begin match pb with
+        MPat_aux ( MPat_pat (p), _ ) ->
+          print_endline ("MPat_pat iformat");
+          add_iformat app_id p
+      | _ ->
+          print_endline ("assert ");
+          assert false
+      end
+  | _ -> assert false
+
+let parse_iformat i mc = match mc with
+    MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
+      print_endline ("MCL_bidir " ^ string_of_id i);
+      begin match pa with
+        MPat_aux ( MPat_pat (p), _ ) ->
+          print_endline ("MPat_pat TBD");
+          parse_iformat_mpat p pb
+      | _ -> assert false
+      end
+  | _ -> assert false
+
 let parse_SD_mapcl i mc =
   print_endline ("SD_mapcl " ^ string_of_id i);
   match string_of_id i with
@@ -181,6 +284,15 @@ let parse_SD_mapcl i mc =
   | "assembly" ->
       print_endline "ASSEMBLY!";
       parse_assembly i mc
+  | "iname" -> (* experimental *)
+      print_endline "INAME!";
+      parse_iname i mc
+  | "idescription" -> (* experimental *)
+      print_endline "IDESCRIPTION!";
+      parse_idescription i mc
+  | "iformat" -> (* experimental *)
+      print_endline "IFORMAT!";
+      parse_iformat i mc
   | _ -> ();
   match mc with
   | MCL_aux ( MCL_bidir ( pa, pb ), _ ) ->
@@ -352,15 +464,31 @@ let json_of_function k =
     None -> ""
   | Some (f) -> String.escaped f
 
+let json_of_iname k =
+  match Hashtbl.find_opt inames k with
+    None -> "\"TBD\""
+  | Some (s) -> s
+
+let json_of_idescriptions k =
+  match Hashtbl.find_opt idescriptions k with
+    None -> "\"TBD\""
+  | Some (s) -> "\"" ^ (String.escaped s) ^ "\""
+
+let json_of_iformat k =
+  match Hashtbl.find_opt iformats k with
+    None -> "\"TBD\""
+  | Some (s) -> "\"" ^ s ^ "\""
+
 let json_of_instruction k =
   let m = Hashtbl.find assembly k in
     "{\n" ^
     "  \"mnemonic\": " ^ List.hd m ^ ",\n" ^
-    "  \"name\": " ^ "\"TBD\"" ^ ",\n" ^
+    "  \"name\": " ^ (json_of_iname k) ^ ",\n" ^
     "  \"operands\": [ " ^ (json_of_operands k) ^ " ],\n" ^
+    "  \"format\": " ^ (json_of_iformat k) ^ ",\n" ^
     "  \"fields\": [ " ^ (json_of_fields k) ^ " ],\n" ^
     "  \"function\": \"" ^ (json_of_function k) ^ "\",\n" ^
-    "  \"description\": " ^ "\"TBD\"" ^ "\n" ^
+    "  \"description\": " ^ (json_of_idescriptions k) ^ "\n" ^
     "}"
 
 let rec parse_typ name t = match t with
@@ -417,6 +545,12 @@ let riscv_decode_info ast env =
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) functions;
   print_endline "op_functions";
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) op_functions;
+  print_endline "inames";
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) inames;
+  print_endline "idescriptions";
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) idescriptions;
+  print_endline "iformats";
+  Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) iformats;
   print_endline "{";
   print_endline "  \"instructions\": [";
   (* Filter out keys which have no match in 'assembly'. *)
