@@ -64,6 +64,9 @@ let rec string_list_of_mpat x = match x with
   | MP_aux (MP_typ ( mp, at ), _) ->
       print_endline "MP_typ";
       string_list_of_mpat mp
+  | MP_aux (MP_tuple ( mpl ), _) ->
+      print_endline "MP_tuple";
+      List.concat (List.map string_list_of_mpat mpl)
   | _ -> assert false
 
 let parse_MPat_aux p = match p with
@@ -172,8 +175,8 @@ let parse_assembly i mc = match mc with
       end
   | _ -> assert false
 
-let parse_SD_mapcl i mc =
-  print_endline ("SD_mapcl " ^ string_of_id i);
+let parse_mapcl i mc =
+  print_endline ("mapcl " ^ string_of_id i);
   match string_of_id i with
     "encdec" ->
       print_endline "ENCDEC!";
@@ -202,11 +205,11 @@ let parse_execute p e =
       Hashtbl.add functions x (string_of_exp e)
     end
 
-let parse_SD_funcl fcl =
-  print_endline "SD_funcl";
+let parse_funcl fcl =
+  print_endline "funcl";
   match fcl with
-  | FCL_aux ( FCL_Funcl ( i, Pat_aux ( j, _ ) ), _ ) ->
-      print_endline ("FCL_Funcl " ^ string_of_id i);
+  | FCL_aux ( FCL_funcl ( i, Pat_aux ( j, _ ) ), _ ) ->
+      print_endline ("FCL_funcl " ^ string_of_id i);
       if (string_of_id i) = "execute" then begin
         match j with
         | Pat_exp ( p, e ) -> (* parse_exp e *)
@@ -229,19 +232,18 @@ let parse_SD_funcl fcl =
             print_endline (string_of_exp e);
             print_endline (string_of_exp w);
             parse_execute p e
-        | _ -> raise (Failure "FCL_Funcl other")
+        | _ -> raise (Failure "FCL_funcl other")
       end
-  | _ -> raise (Failure "SD_funcl other")
+  | _ -> raise (Failure "funcl other")
 
-let parse_SD_unioncl i ucl =
-  print_endline ("SD_unioncl " ^ string_of_id i);
+let parse_type_union i ucl =
+  print_endline ("type_union " ^ string_of_id i);
   match ucl with
   | Tu_aux ( Tu_ty_id ( c, d ), _ ) ->
       print_string ("Tu_ty_id " ^ string_of_id d ^ "(");
       (* print_endline (string_of_typ c); *)
       begin match c with
-      | Typ_aux ( Typ_tup ( x ), _ ) ->
-          (* Typ_tuple in later versions of sail *)
+      | Typ_aux ( Typ_tuple ( x ), _ ) ->
           List.iter (fun x0 ->
               let type_name = string_of_typ x0 in
                 let type_type = try Hashtbl.find types (string_of_typ x0)
@@ -253,7 +255,7 @@ let parse_SD_unioncl i ucl =
       | _ -> print_endline "Tu_ty_id other"
       end;
       print_endline ")"
-  | _ -> print_endline "SD_unioncl other"
+  | _ -> print_endline "type_union other"
 
 let parse_DEF_type def =
   print_endline "DEF_type";
@@ -288,7 +290,9 @@ let parse_DEF_type def =
     end
     *)
   | TD_aux ( TD_record (d, e, f, g), _) -> print_endline ( "TD_record " ^ string_of_id d )
-  | TD_aux ( TD_variant (d, e, f, g), _) -> print_endline ( "TD_variant " ^ string_of_id d )
+  | TD_aux ( TD_variant (d, e, f, g), _) ->
+      print_endline ( "TD_variant " ^ string_of_id d );
+      List.iter (parse_type_union d) f
   | TD_aux ( TD_enum (d, e, f), _) -> print_endline ( "TD_enum " ^ string_of_id d )
   | TD_aux ( TD_bitfield (d, e, f), _) -> print_endline ( "TD_bitfield " ^ string_of_id d )
   | _ -> print_endline "DEF_type other"
@@ -385,23 +389,19 @@ let parse_typschm name ts = match ts with
 let riscv_decode_info ast env =
   List.iter (fun def ->
     match def with
-      DEF_type ( def ) -> parse_DEF_type def
-    | DEF_spec ( vs ) ->
-        print_endline "DEF_spec";
+      DEF_aux (DEF_type ( def ), _) -> parse_DEF_type def
+    | DEF_aux (DEF_val ( vs ), _) ->
+        print_endline "DEF_val";
         begin match vs with
-          VS_aux ( VS_val_spec (ts, i, _, _), _) ->
+          VS_aux ( VS_val_spec (ts, i, _), _) ->
             parse_typschm (string_of_id i) ts
         end
-    | DEF_scattered ( def ) ->
-        begin match def with
-        | SD_aux ( SD_funcl ( fcl ), _ ) -> parse_SD_funcl fcl
-        | SD_aux ( SD_function ( _, _, _ ), _ ) -> print_endline "SD_function"
-        | SD_aux ( SD_variant ( _, _ ), _ ) -> print_endline "SD_variant"
-        | SD_aux ( SD_unioncl ( i, ucl ), _ ) -> parse_SD_unioncl i ucl
-        | SD_aux ( SD_mapping ( _, _ ), _ ) -> print_endline "SD_mapping"
-        | SD_aux ( SD_mapcl ( i, mc ), _ ) -> parse_SD_mapcl i mc
-        | _ -> print_endline "b"
-        end
+    | DEF_aux (DEF_fundef (FD_aux (FD_function (Rec_aux (_, _), Typ_annot_opt_aux(_, _), fl), _)), _) ->
+        print_endline "DEF_fundef";
+        List.iter parse_funcl fl
+    | DEF_aux (DEF_mapdef (MD_aux (MD_mapping (i, _, ml), _)), _) ->
+        print_endline "DEF_mapdef";
+        List.iter (parse_mapcl i) ml
     | _ -> print_string ""
   ) ast.defs;
   Hashtbl.iter (fun k v -> print_endline (k ^ ":" ^ v)) types;
@@ -429,5 +429,5 @@ let riscv_decode_info ast env =
 let _ =
   Target.register
     ~name:"riscv_decode"
-    ~pre_descatter_hook:riscv_decode_info
-    (fun _ _ _ _ _ -> ())
+    ~pre_rewrites_hook:riscv_decode_info
+    (fun _ _ _ _ _ _-> ())
