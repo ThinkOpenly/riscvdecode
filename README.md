@@ -1,3 +1,10 @@
+# THIS PROJECT IS DEPRECATED
+
+> [!NOTE]
+> This project is deprecated.
+> 
+> Please see https://github.com/ThinkOpenly/sail/tree/json instead.
+
 # Sail RISC-V extractor
 
 A tool to extract information from the sail-riscv spec.
